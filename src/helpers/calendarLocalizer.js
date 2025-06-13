@@ -9,7 +9,7 @@ const locales = {
 export const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek,
+  startOfWeek: (date) => startOfWeek(date, { locale: locales['es'] }),
   getDay,
   locales,
 });
