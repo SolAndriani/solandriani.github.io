@@ -1,73 +1,82 @@
 import { useState } from 'react';
 import { Calendar } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import './Calendar.css';
+
+import moment from 'moment';
 
 import { Navbar, CalendarEvent, CalendarModal, FabAddNew, FabDelete } from '../';
-
 import { localizer, getMessagesES } from '../../helpers';
 import { useUiStore, useCalendarStore } from '../../hooks';
 
 export const CalendarPage = () => {
-
   const { openDateModal } = useUiStore();
   const { events, setActiveEvent } = useCalendarStore();
 
-  const [ lastView, setLastView ] = useState(localStorage.getItem('lastView') || 'week');
+  const [lastView, setLastView] = useState(localStorage.getItem('lastView') || 'week');
 
-  // Normalizo las fechas para que siempre sean objetos Date válidos
+  // Normalizamos eventos
   const normalizedEvents = events.map(ev => ({
     ...ev,
     start: new Date(ev.start),
     end: ev.end ? new Date(ev.end) : new Date(ev.start),
   }));
 
-  const eventStyleGetter = (event, start, end, isSelected) => {
-    const style = {
+
+
+  const eventStyleGetter = (event, start, end, isSelected) => ({
+    style: {
       backgroundColor: '#347CF7',
       borderRadius: '0px',
       opacity: 0.8,
-      color: 'white'
-    };
+      color: 'white',
+    },
+  });
 
-    return {
-      style
-    };
+  const onDoubleClick = (event) => openDateModal();
+
+  const onSelect = (event) => setActiveEvent(event);
+
+  const onViewChanged = (view) => {
+    localStorage.setItem('lastView', view);
+    setLastView(view);
   };
 
-  const onDoubleClick = (event) => {
-    openDateModal();
-  };
+  // Fecha actual
+  const today = new Date();
 
-  const onSelect = (event) => {
-    setActiveEvent(event);
-  };
+  // Para agenda: filtro eventos que estén en un rango extendido (3 meses antes y después de hoy)
+  const agendaEvents = normalizedEvents.filter(ev => {
+    const startLimit = moment(today).subtract(3, 'months').startOf('day');
+    const endLimit = moment(today).add(3, 'months').endOf('day');
+    return moment(ev.start).isBetween(startLimit, endLimit, null, '[]') || moment(ev.end).isBetween(startLimit, endLimit, null, '[]');
+  });
 
-  const onViewChanged = (event) => {
-    localStorage.setItem('lastView', event);
-    setLastView(event);
-  };
+  // Evento que se pasa al calendario depende de la vista: 
+  // - si la vista es agenda, pasa solo agendaEvents (filtrados)
+  // - si no, pasa todos los eventos
+  const eventsToShow = lastView === 'agenda' ? agendaEvents : normalizedEvents;
 
   return (
     <>
       <Navbar />
 
       <Calendar
-        culture='es'
+        culture="es"
         localizer={localizer}
-        events={normalizedEvents}
-        defaultView={lastView}
-        defaultDate={new Date(2025, 5, 18)} // junio es 5 porque los meses empiezan en 0
+        events={eventsToShow}
+        defaultDate={new Date()}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 'calc( 100vh - 80px )' }}
+        style={{ height: 'calc(100vh - 80px)' }}
         messages={getMessagesES()}
         eventPropGetter={eventStyleGetter}
-        components={{
-          event: CalendarEvent
-        }}
+        components={{ event: CalendarEvent }}
         onDoubleClickEvent={onDoubleClick}
         onSelectEvent={onSelect}
         onView={onViewChanged}
+        views={['month', 'week', 'day', 'agenda']}
+        view={lastView}
       />
 
       <CalendarModal />
